@@ -81,4 +81,27 @@ router.delete("/:id", (req, res) => {
     });
 });
 
+router.post("/", (req, res) => {
+  const { title, contents } = req.body;
+  if (title && contents) {
+    Posts.insert({ title: title, contents: contents })
+      .then(post => {
+        res.status(201).json(post);
+      })
+      .catch(err => {
+        res
+          .status(500)
+          .json({
+            error: "There was an error while saving the post to the database"
+          });
+      });
+  } else {
+    res
+      .status(400)
+      .json({
+        errorMessage: "Please provide title and contents for the post."
+      });
+  }
+});
+
 module.exports = router;
