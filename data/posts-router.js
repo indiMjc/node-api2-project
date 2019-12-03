@@ -20,9 +20,10 @@ router.get("/", (req, res) => {
 });
 
 router.get("/:id", (req, res) => {
-  Posts.findById(req.params.id)
+  const id = req.params.id;
+  Posts.findById(id)
     .then(post => {
-      if (post) {
+      if (post.length) {
         res.status(200).json(post);
       } else {
         res
@@ -39,10 +40,26 @@ router.get("/:id", (req, res) => {
 });
 
 router.get("/:id/comments", (req, res) => {
-  Posts.findPostComments(req.params.id)
-    .then(comments => {
-      if (comments) {
-        res.status(200).json(comments);
+  const id = req.params.id;
+  Posts.findById(id)
+    .then(post => {
+      if (post.length) {
+        Posts.findPostComments(id)
+          .then(comments => {
+            if (comments.length > 0) {
+              res.status(200).json(comments);
+            } else {
+              res
+                .status(404)
+                .json({ message: "There are no comments for this post." });
+            }
+          })
+          .catch(err => {
+            console.log(err);
+            res.status(500).json({
+              error: "The comments information could not be retrieved."
+            });
+          });
       } else {
         res
           .status(404)
@@ -62,7 +79,7 @@ router.delete("/:id", (req, res) => {
 
   Posts.findById(id)
     .then(post => {
-      if (post) {
+      if (post.length) {
         Posts.remove(id)
           .then(() => {
             res.status(200).json(post);
@@ -77,6 +94,7 @@ router.delete("/:id", (req, res) => {
       }
     })
     .catch(err => {
+      console.log(err);
       res.status(500).json({ error: "The post could not be removed" });
     });
 });
@@ -107,7 +125,7 @@ router.post("/:id/comments", (req, res) => {
   if (text) {
     Posts.findById(id)
       .then(post => {
-        if (post.length > 0) {
+        if (post.length) {
           Posts.insertComment({ text: text, post_id: id })
             .then(() => {
               res.status(201).json({ message: req.body });
@@ -138,56 +156,33 @@ router.post("/:id/comments", (req, res) => {
   }
 });
 
-router.post("/:id/comments", (req, res) => {
-  const id = req.params.id;
-  const { text } = req.body;
-  Posts.findById(id).then(post => {
-    if (post) {
-      if (text) {
-        post
-          .insertComment(req.body)
-          .then(post => {
-            res.status(201).json(post);
-          })
-          .catch(err => {
-            console.log(err);
-            res.status(500).json({
-              error:
-                "There was an error while saving the comment to the database"
-            });
-          });
-      } else {
-        res
-          .status(400)
-          .json({ errorMessage: "Please provide text for the comment." });
-      }
-    } else {
-      res
-        .status(404)
-        .json({ message: "The post with the specified ID does not exist." });
-    }
-  });
-});
-
 router.put("/:id", (req, res) => {
-  const changes = req.body;
+  const id = req.params.id;
   const { title, contents } = req.body;
   if (title && contents) {
-    Posts.update(req.params.id, changes)
-      .then(post => {
-        if (post) {
-          res.status(200).json(changes);
+    Posts.update(id, req.body)
+      .then(edited => {
+        if (edited) {
+          Posts.findById(id)
+            .then(post => {
+              res.status(200).json(post);
+            })
+            .catch(err => {
+              res.status(500).json({
+                error: "The post information could not be retrieved."
+              });
+            });
         } else {
-          res.status(404).json({
-            message: "The post with the specified ID does not exist."
-          });
+          res
+            .status(404)
+            .json({ message: "Post with specified ID not found." });
         }
       })
       .catch(err => {
         console.log(err);
-        res
-          .status(500)
-          .json({ error: "The post information could not be modified." });
+        res.status(500).json({
+          error: "There was an error while saving the post to the database."
+        });
       });
   } else {
     res.status(400).json({
